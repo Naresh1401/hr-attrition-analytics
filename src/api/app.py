@@ -41,6 +41,7 @@ def _load_artifact(name: str):
 
 class EmployeeInput(BaseModel):
     age: int = Field(..., ge=18, le=70)
+    department: str = Field("Engineering", description="Department: Engineering, Finance, HR, Marketing, Operations, Sales")
     tenure_months: int = Field(..., ge=0)
     salary: float = Field(..., gt=0)
     performance_rating: int = Field(..., ge=1, le=5)
@@ -91,7 +92,7 @@ def _employee_to_feature_vector(employee: EmployeeInput) -> np.ndarray:
     feature_cols = _load_artifact("feature_columns.joblib")
 
     # Build a dict of all available raw features from input
-    raw_features = employee.model_dump(exclude={"model_name"})
+    raw_features = employee.model_dump(exclude={"model_name", "department"})
 
     # Compute derived features
     raw_features["salary_vs_dept_median"] = 1.0  # Approximation without full dataset
@@ -130,9 +131,10 @@ def _employee_to_feature_vector(employee: EmployeeInput) -> np.ndarray:
     risk_flags = ["stagnation_flag", "burnout_flag", "comp_dissatisfaction_flag", "high_perf_at_risk", "isolation_flag", "commute_burden_flag"]
     raw_features["risk_flag_count"] = sum(raw_features[f] for f in risk_flags)
 
-    # Department one-hot (default zeros, no department info from single employee)
-    for dept in ["Engineering", "Finance", "HR", "Marketing", "Operations", "Sales"]:
-        raw_features[f"dept_{dept}"] = 0
+    # Department one-hot encoding from input
+    valid_depts = ["Engineering", "Finance", "HR", "Marketing", "Operations", "Sales"]
+    for dept in valid_depts:
+        raw_features[f"dept_{dept}"] = int(employee.department == dept)
 
     # Assemble feature vector in correct column order
     feature_vector = []
